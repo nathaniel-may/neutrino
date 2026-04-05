@@ -1,0 +1,20 @@
+name: Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') && github.event.pull_request.base.ref != 'main' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for changelog fragment
+        run: |
+          if ! ls .changes/unreleased/*.yaml 1>/dev/null 2>&1; then
+            echo "No changelog fragment found in .changes/unreleased/"
+            echo "Add one with 'changie new' or add the 'skip-changelog' label to skip this check."
+            exit 1
+          fi

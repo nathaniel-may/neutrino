@@ -1,0 +1,37 @@
+name: Changelog Batched Release
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-batch-file:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref == 'main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Check changie batch was run
+        run: |
+          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          if [ ! -f ".changes/${VERSION}.md" ]; then
+            echo "Missing .changes/${VERSION}.md — run 'changie batch' before merging to main"
+            exit 1
+          fi
+
+      - name: Check changie merge was run
+        run: |
+          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          if ! grep -q "^## ${VERSION}" CHANGELOG.md; then
+            echo "Version ${VERSION} not found in CHANGELOG.md — run 'changie merge' before merging to main"
+            exit 1
+          fi
