@@ -5,7 +5,9 @@ mod uv;
 mod vm;
 
 use clap::{Parser, Subcommand};
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
+use std::process::Command as Process;
 
 #[derive(Parser)]
 #[command(name = "neutrino", about = "Sandboxed AI agent environments")]
@@ -44,10 +46,15 @@ fn main() -> anyhow::Result<()> {
             docker::install_if_needed(&config)?;
             uv::install_if_needed(&config)?;
             agent::write_settings(&config)?;
-            if docker::is_needed(&config) {
-                Err(vm::exec(&config.vm.name, &["sg", "docker", "-c", "claude"]))
+            if let Some(ref attach) = config.attach {
+                let args = attach.resolved_args(&config);
+                Err(anyhow::Error::from(
+                    Process::new(&attach.command).args(&args).exec(),
+                ))
+            } else if docker::is_needed(&config) {
+                Err(vm::exec(&config.vm.name, &["sg", "docker", "bash"]))
             } else {
-                Err(vm::exec(&config.vm.name, &["claude"]))
+                Err(vm::exec(&config.vm.name, &[]))
             }
         }
         Command::Down => {
@@ -76,6 +83,13 @@ fn validate(config_path: &Path) -> anyhow::Result<()> {
         "  vm:      {} ({}, {}GB, {} CPUs)",
         config.vm.name, config.vm.distro, config.vm.memory_gb, config.vm.cpus
     );
+    if let Some(attach) = &config.attach {
+        println!(
+            "  attach:  {} {}",
+            attach.command,
+            attach.resolved_args(&config).join(" ")
+        );
+    }
     if let Some(secrets) = &config.secrets {
         println!("  secrets: {}", secrets.source.display());
     }
@@ -95,6 +109,10 @@ name = "my-project"
 distro = "ubuntu:24.04"
 memory_gb = 4
 cpus = 2
+
+[attach]
+command = "orb"
+args = ["run", "-m", "{config.vm.name}"]
 
 # [secrets]
 # source = ".env"

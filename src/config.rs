@@ -11,6 +11,8 @@ pub struct Config {
     pub agent: AgentConfig,
     /// VM provisioning settings
     pub vm: VmConfig,
+    /// Command to run on the host after the VM is provisioned
+    pub attach: Option<AttachConfig>,
     /// Secrets file to source environment variables from
     pub secrets: Option<SecretsConfig>,
     /// MCP server definitions
@@ -32,6 +34,42 @@ impl Config {
             secrets.source = resolve_path(base, &secrets.source);
         }
         Ok(config)
+    }
+
+    /// Returns all config fields available as template variables.
+    ///
+    /// Keys use dot-path notation matching the config structure (e.g. `config.vm.name`),
+    /// so template strings like `{config.vm.name}` are substituted at runtime.
+    pub fn template_vars(&self) -> HashMap<String, String> {
+        macro_rules! vars {
+            ($alias:ident = $config:expr; $($field:expr),+ $(,)?) => {{
+                let $alias = $config;
+                let mut map = HashMap::new();
+                $(
+                    map.insert(
+                        stringify!($field).replace(" ", ""),
+                        $field.to_string(),
+                    );
+                )+
+                map
+            }};
+        }
+        // Compile-time exhaustiveness check: update when VmConfig fields change.
+        let _ = |v: &VmConfig| {
+            let VmConfig {
+                name: _,
+                distro: _,
+                memory_gb: _,
+                cpus: _,
+            } = v;
+        };
+
+        vars!(config = self;
+            config.vm.name,
+            config.vm.distro,
+            config.vm.memory_gb,
+            config.vm.cpus,
+        )
     }
 }
 
@@ -76,6 +114,33 @@ pub struct VmConfig {
 pub struct SecretsConfig {
     /// Path to a file to source secrets from — canonicalized to absolute at parse time
     pub source: PathBuf,
+}
+
+/// Host-side command to run after the VM is provisioned
+///
+/// Args may contain template variables (e.g. `{config.vm.name}`) which are
+/// substituted with values from the config at runtime.
+#[derive(Debug, Deserialize)]
+pub struct AttachConfig {
+    /// Executable to run on the host
+    pub command: String,
+    /// Command arguments
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
+impl AttachConfig {
+    /// Return args with config template variables substituted.
+    pub fn resolved_args(&self, config: &Config) -> Vec<String> {
+        let vars = config.template_vars();
+        self.args
+            .iter()
+            .map(|a| {
+                vars.iter()
+                    .fold(a.clone(), |s, (k, v)| s.replace(&format!("{{{k}}}"), v))
+            })
+            .collect()
+    }
 }
 
 /// MCP server definition
@@ -184,5 +249,27 @@ mod tests {
             memory_gb = 4
         "#;
         assert!(Config::parse(content, base).is_err());
+    }
+
+    // AttachConfig::resolved_args
+
+    #[test]
+    fn resolved_args_substitutes_vm_name() {
+        let config = Config::parse(MINIMAL, Path::new("/project")).unwrap();
+        let attach = AttachConfig {
+            command: "orb".into(),
+            args: vec!["run".into(), "-m".into(), "{config.vm.name}".into()],
+        };
+        assert_eq!(attach.resolved_args(&config), vec!["run", "-m", "test"]);
+    }
+
+    #[test]
+    fn resolved_args_passes_through_non_template_args() {
+        let config = Config::parse(MINIMAL, Path::new("/project")).unwrap();
+        let attach = AttachConfig {
+            command: "zed".into(),
+            args: vec!["ssh://orb/home/ubuntu".into()],
+        };
+        assert_eq!(attach.resolved_args(&config), vec!["ssh://orb/home/ubuntu"]);
     }
 }

@@ -165,6 +165,7 @@ mod tests {
                 memory_gb: 4,
                 cpus: 2,
             },
+            attach: None,
             secrets: None,
             mcp_servers: vec![],
         }
