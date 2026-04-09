@@ -1,6 +1,7 @@
 mod agent;
 mod config;
 mod docker;
+mod uv;
 mod vm;
 
 use clap::{Parser, Subcommand};
@@ -41,6 +42,7 @@ fn main() -> anyhow::Result<()> {
             vm::save_config(&config.vm)?;
             agent::install(&config.vm.name)?;
             docker::install_if_needed(&config)?;
+            uv::install_if_needed(&config)?;
             agent::write_settings(&config)?;
             if docker::is_needed(&config) {
                 Err(vm::exec(&config.vm.name, &["sg", "docker", "-c", "claude"]))
@@ -96,6 +98,11 @@ cpus = 2
 
 # [secrets]
 # source = ".env"
+
+# [[mcp]]
+# name = "git"
+# command = "uvx"
+# args = ["mcp-server-git"]
 
 # [[mcp]]
 # name = "github"
