@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Top-level neutrino configuration
 #[derive(Debug, Deserialize)]
@@ -59,7 +59,7 @@ impl std::fmt::Display for AgentType {
 }
 
 /// VM provisioning configuration
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct VmConfig {
     /// OrbStack VM name — must be unique per machine
     pub name: String,

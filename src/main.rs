@@ -36,7 +36,9 @@ fn main() -> anyhow::Result<()> {
         Command::Validate => validate(&cli.config),
         Command::Run => {
             let config = config::Config::from_file(&cli.config)?;
+            vm::check_drift(&config.vm)?;
             vm::up(&config.vm)?;
+            vm::save_config(&config.vm)?;
             agent::install(&config.vm.name)?;
             docker::install_if_needed(&config)?;
             agent::write_settings(&config)?;

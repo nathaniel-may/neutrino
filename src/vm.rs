@@ -3,6 +3,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use anyhow::{Context, bail};
+use toml;
 
 use crate::config::VmConfig;
 
@@ -38,6 +39,78 @@ fn orb_config_get(key: &str) -> anyhow::Result<u32> {
         .trim()
         .parse::<u32>()
         .context("failed to parse orb config value")
+}
+
+pub fn check_drift(config: &VmConfig) -> anyhow::Result<()> {
+    if !exists(&config.name)? {
+        return Ok(());
+    }
+    let stored_toml = capture(
+        &config.name,
+        &["sh", "-c", "cat ~/.neutrino-vm.toml 2>/dev/null || true"],
+    )?;
+    if stored_toml.is_empty() {
+        return Ok(());
+    }
+    let stored: VmConfig =
+        toml::from_str(&stored_toml).context("failed to parse stored VM config")?;
+    if let Some(msg) = drift_message(&stored, config) {
+        anyhow::bail!("{}", msg);
+    }
+    Ok(())
+}
+
+pub fn save_config(config: &VmConfig) -> anyhow::Result<()> {
+    let already_saved = capture(
+        &config.name,
+        &[
+            "sh",
+            "-c",
+            "test -f ~/.neutrino-vm.toml && echo yes || true",
+        ],
+    )?;
+    if already_saved == "yes" {
+        return Ok(());
+    }
+    let toml = toml::to_string(config).context("failed to serialize VM config")?;
+    let tmp = std::env::temp_dir().join("neutrino-vm.toml");
+    std::fs::write(&tmp, toml)?;
+    let result = push_file(&config.name, &tmp, ".neutrino-vm.toml");
+    std::fs::remove_file(&tmp).ok();
+    result
+}
+
+fn drift_message(stored: &VmConfig, current: &VmConfig) -> Option<String> {
+    if stored == current {
+        return None;
+    }
+    let mut changes = vec![];
+    if stored.name != current.name {
+        changes.push(format!(
+            "  name:      {:?} → {:?}",
+            stored.name, current.name
+        ));
+    }
+    if stored.distro != current.distro {
+        changes.push(format!(
+            "  distro:    {:?} → {:?}",
+            stored.distro, current.distro
+        ));
+    }
+    if stored.memory_gb != current.memory_gb {
+        changes.push(format!(
+            "  memory_gb: {} → {}",
+            stored.memory_gb, current.memory_gb
+        ));
+    }
+    if stored.cpus != current.cpus {
+        changes.push(format!("  cpus:      {} → {}", stored.cpus, current.cpus));
+    }
+    Some(format!(
+        "VM '{}' was created with a different configuration:\n{}\nRun `neutrino down` then re-run to apply VM changes.",
+        current.name,
+        changes.join("\n"),
+    ))
 }
 
 pub fn down(config: &VmConfig) -> anyhow::Result<()> {
@@ -178,5 +251,31 @@ mod tests {
     fn delete_args_includes_force_flag() {
         let args = delete_args("test-vm");
         assert_eq!(args, vec!["delete", "--force", "test-vm"]);
+    }
+
+    #[test]
+    fn drift_message_none_when_configs_match() {
+        assert!(drift_message(&test_config(), &test_config()).is_none());
+    }
+
+    #[test]
+    fn drift_message_some_when_distro_changes() {
+        let mut updated = test_config();
+        updated.distro = "ubuntu:22.04".into();
+        let msg = drift_message(&test_config(), &updated).unwrap();
+        assert!(msg.contains("distro"));
+        assert!(msg.contains("ubuntu:24.04"));
+        assert!(msg.contains("ubuntu:22.04"));
+        assert!(msg.contains("neutrino down"));
+    }
+
+    #[test]
+    fn drift_message_reports_all_changed_fields() {
+        let mut updated = test_config();
+        updated.distro = "debian:12".into();
+        updated.memory_gb = 8;
+        let msg = drift_message(&test_config(), &updated).unwrap();
+        assert!(msg.contains("distro"));
+        assert!(msg.contains("memory_gb"));
     }
 }
