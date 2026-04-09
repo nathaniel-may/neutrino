@@ -20,7 +20,7 @@ fn print_orb_resources() {
     match (orb_config_get("cpu"), orb_config_get("memory_mib")) {
         (Ok(cpus), Ok(memory_mib)) => {
             println!("OrbStack resources: {} CPUs, {}GB memory", cpus, memory_mib / 1024);
-            println!("To adjust: OrbStack menu → Preferences → Resources");
+            println!("To adjust: OrbStack menu → Preferences → Resources (restart VM to apply)");
         }
         _ => {}
     }

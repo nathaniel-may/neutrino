@@ -1,3 +1,4 @@
+mod agent;
 mod config;
 mod vm;
 
@@ -34,7 +35,8 @@ fn main() -> anyhow::Result<()> {
         Command::Validate => validate(&cli.config),
         Command::Up => {
             let config = config::Config::from_file(&cli.config)?;
-            vm::up(&config.vm)
+            vm::up(&config.vm)?;
+            agent::install(&config.vm.name)
         }
         Command::Down => {
             let config = config::Config::from_file(&cli.config)?;
