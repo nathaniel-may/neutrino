@@ -22,8 +22,8 @@ enum Command {
     Init,
     /// Validate a .neutrino.toml config file
     Validate,
-    /// Create and start the VM defined in the config
-    Up,
+    /// Provision the VM and launch the agent
+    Run,
     /// Stop and delete the VM defined in the config
     Down,
 }
@@ -33,11 +33,12 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Init => init(),
         Command::Validate => validate(&cli.config),
-        Command::Up => {
+        Command::Run => {
             let config = config::Config::from_file(&cli.config)?;
             vm::up(&config.vm)?;
             agent::install(&config.vm.name)?;
-            agent::write_settings(&config.vm.name, &config)
+            agent::write_settings(&config.vm.name, &config)?;
+            Err(vm::exec(&config.vm.name, &["claude"]))
         }
         Command::Down => {
             let config = config::Config::from_file(&cli.config)?;

@@ -1,7 +1,8 @@
+use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 
 use crate::config::VmConfig;
 
@@ -20,7 +21,11 @@ pub fn up(config: &VmConfig) -> anyhow::Result<()> {
 fn print_orb_resources() {
     match (orb_config_get("cpu"), orb_config_get("memory_mib")) {
         (Ok(cpus), Ok(memory_mib)) => {
-            println!("OrbStack resources: {} CPUs, {}GB memory", cpus, memory_mib / 1024);
+            println!(
+                "OrbStack resources: {} CPUs, {}GB memory",
+                cpus,
+                memory_mib / 1024
+            );
             println!("To adjust: OrbStack menu → Preferences → Resources (restart VM to apply)");
         }
         _ => {}
@@ -68,6 +73,17 @@ fn run_orb(args: &[String]) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Replace the current process with an interactive command in the VM.
+/// Only returns if exec fails.
+pub fn exec(vm_name: &str, cmd: &[&str]) -> anyhow::Error {
+    anyhow::Error::from(
+        Command::new("orb")
+            .args(["run", "-m", vm_name])
+            .args(cmd)
+            .exec(),
+    )
+}
+
 pub fn run(vm_name: &str, cmd: &[&str]) -> anyhow::Result<()> {
     let status = Command::new("orb")
         .args(["run", "-m", vm_name])
@@ -85,7 +101,13 @@ pub fn run_as_root(vm_name: &str, cmd: &[&str]) -> anyhow::Result<()> {
         .args(["run", "-m", vm_name, "-u", "root"])
         .args(cmd)
         .status()
-        .with_context(|| format!("failed to run '{}' as root in VM '{}'", cmd.join(" "), vm_name))?;
+        .with_context(|| {
+            format!(
+                "failed to run '{}' as root in VM '{}'",
+                cmd.join(" "),
+                vm_name
+            )
+        })?;
     if !status.success() {
         bail!("'{}' failed as root in VM '{}'", cmd.join(" "), vm_name);
     }
