@@ -1,4 +1,5 @@
 mod config;
+mod vm;
 
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
@@ -20,6 +21,10 @@ enum Command {
     Init,
     /// Validate a .neutrino.toml config file
     Validate,
+    /// Create and start the VM defined in the config
+    Up,
+    /// Stop and delete the VM defined in the config
+    Down,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -27,6 +32,14 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Init => init(),
         Command::Validate => validate(&cli.config),
+        Command::Up => {
+            let config = config::Config::from_file(&cli.config)?;
+            vm::up(&config.vm)
+        }
+        Command::Down => {
+            let config = config::Config::from_file(&cli.config)?;
+            vm::down(&config.vm)
+        }
     }
 }
 
