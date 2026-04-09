@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context};
@@ -63,6 +64,41 @@ fn run_orb(args: &[String]) -> anyhow::Result<()> {
         .with_context(|| format!("failed to run 'orb {}'", args.join(" ")))?;
     if !status.success() {
         bail!("'orb {}' exited with {}", args.join(" "), status);
+    }
+    Ok(())
+}
+
+pub fn run(vm_name: &str, cmd: &[&str]) -> anyhow::Result<()> {
+    let status = Command::new("orb")
+        .args(["run", "-m", vm_name])
+        .args(cmd)
+        .status()
+        .with_context(|| format!("failed to run '{}' in VM '{}'", cmd.join(" "), vm_name))?;
+    if !status.success() {
+        bail!("'{}' failed in VM '{}'", cmd.join(" "), vm_name);
+    }
+    Ok(())
+}
+
+pub fn run_as_root(vm_name: &str, cmd: &[&str]) -> anyhow::Result<()> {
+    let status = Command::new("orb")
+        .args(["run", "-m", vm_name, "-u", "root"])
+        .args(cmd)
+        .status()
+        .with_context(|| format!("failed to run '{}' as root in VM '{}'", cmd.join(" "), vm_name))?;
+    if !status.success() {
+        bail!("'{}' failed as root in VM '{}'", cmd.join(" "), vm_name);
+    }
+    Ok(())
+}
+
+pub fn push_file(vm_name: &str, src: &Path, dest: &str) -> anyhow::Result<()> {
+    let status = Command::new("orb")
+        .args(["push", "-m", vm_name, src.to_str().unwrap(), dest])
+        .status()
+        .with_context(|| format!("failed to push {} to VM '{}'", src.display(), vm_name))?;
+    if !status.success() {
+        bail!("failed to push {} to VM '{}'", src.display(), vm_name);
     }
     Ok(())
 }

@@ -36,7 +36,8 @@ fn main() -> anyhow::Result<()> {
         Command::Up => {
             let config = config::Config::from_file(&cli.config)?;
             vm::up(&config.vm)?;
-            agent::install(&config.vm.name)
+            agent::install(&config.vm.name)?;
+            agent::write_settings(&config.vm.name, &config)
         }
         Command::Down => {
             let config = config::Config::from_file(&cli.config)?;
