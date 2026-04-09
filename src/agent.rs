@@ -16,16 +16,23 @@ pub fn install(vm_name: &str) -> anyhow::Result<()> {
 
     println!("Installing Node.js...");
     vm::run_as_root(vm_name, &["apt-get", "update", "-q"])?;
-    vm::run_as_root(vm_name, &["apt-get", "install", "-y", "-q", "nodejs", "npm"])?;
+    vm::run_as_root(
+        vm_name,
+        &["apt-get", "install", "-y", "-q", "nodejs", "npm"],
+    )?;
 
     println!("Installing Claude Code...");
-    vm::run_as_root(vm_name, &["npm", "install", "-g", "@anthropic-ai/claude-code"])?;
+    vm::run_as_root(
+        vm_name,
+        &["npm", "install", "-g", "@anthropic-ai/claude-code"],
+    )?;
 
     println!("Agent installed.");
     Ok(())
 }
 
-pub fn write_settings(vm_name: &str, config: &Config) -> anyhow::Result<()> {
+pub fn write_settings(config: &Config) -> anyhow::Result<()> {
+    let vm_name = &config.vm.name;
     let secrets = match &config.secrets {
         Some(s) => load_secrets(&s.source)?,
         None => HashMap::new(),
@@ -54,7 +61,10 @@ fn is_installed(vm_name: &str) -> anyhow::Result<bool> {
     Ok(status.success())
 }
 
-pub fn build_settings(config: &Config, secrets: &HashMap<String, String>) -> anyhow::Result<String> {
+pub fn build_settings(
+    config: &Config,
+    secrets: &HashMap<String, String>,
+) -> anyhow::Result<String> {
     let mcp_servers = config
         .mcp_servers
         .iter()
@@ -146,7 +156,9 @@ mod tests {
 
     fn minimal_config() -> Config {
         Config {
-            agent: AgentConfig { agent_type: AgentType::Claude },
+            agent: AgentConfig {
+                agent_type: AgentType::Claude,
+            },
             vm: VmConfig {
                 name: "test".into(),
                 distro: "ubuntu:24.04".into(),
@@ -196,10 +208,12 @@ mod tests {
     fn build_settings_denies_bash() {
         let json = build_settings(&minimal_config(), &HashMap::new()).unwrap();
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert!(v["permissions"]["deny"]
-            .as_array()
-            .unwrap()
-            .contains(&serde_json::json!("Bash")));
+        assert!(
+            v["permissions"]["deny"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::json!("Bash"))
+        );
     }
 
     #[test]

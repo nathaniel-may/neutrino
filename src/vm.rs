@@ -19,16 +19,13 @@ pub fn up(config: &VmConfig) -> anyhow::Result<()> {
 }
 
 fn print_orb_resources() {
-    match (orb_config_get("cpu"), orb_config_get("memory_mib")) {
-        (Ok(cpus), Ok(memory_mib)) => {
-            println!(
-                "OrbStack resources: {} CPUs, {}GB memory",
-                cpus,
-                memory_mib / 1024
-            );
-            println!("To adjust: OrbStack menu → Preferences → Resources (restart VM to apply)");
-        }
-        _ => {}
+    if let (Ok(cpus), Ok(memory_mib)) = (orb_config_get("cpu"), orb_config_get("memory_mib")) {
+        println!(
+            "OrbStack resources: {} CPUs, {}GB memory",
+            cpus,
+            memory_mib / 1024
+        );
+        println!("To adjust: OrbStack menu → Preferences → Resources (restart VM to apply)");
     }
 }
 
@@ -112,6 +109,18 @@ pub fn run_as_root(vm_name: &str, cmd: &[&str]) -> anyhow::Result<()> {
         bail!("'{}' failed as root in VM '{}'", cmd.join(" "), vm_name);
     }
     Ok(())
+}
+
+pub fn capture(vm_name: &str, cmd: &[&str]) -> anyhow::Result<String> {
+    let output = Command::new("orb")
+        .args(["run", "-m", vm_name])
+        .args(cmd)
+        .output()
+        .with_context(|| format!("failed to run '{}' in VM '{}'", cmd.join(" "), vm_name))?;
+    if !output.status.success() {
+        bail!("'{}' failed in VM '{}'", cmd.join(" "), vm_name);
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 pub fn push_file(vm_name: &str, src: &Path, dest: &str) -> anyhow::Result<()> {

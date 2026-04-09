@@ -1,5 +1,6 @@
 mod agent;
 mod config;
+mod docker;
 mod vm;
 
 use clap::{Parser, Subcommand};
@@ -37,8 +38,13 @@ fn main() -> anyhow::Result<()> {
             let config = config::Config::from_file(&cli.config)?;
             vm::up(&config.vm)?;
             agent::install(&config.vm.name)?;
-            agent::write_settings(&config.vm.name, &config)?;
-            Err(vm::exec(&config.vm.name, &["claude"]))
+            docker::install_if_needed(&config)?;
+            agent::write_settings(&config)?;
+            if docker::is_needed(&config) {
+                Err(vm::exec(&config.vm.name, &["sg", "docker", "-c", "claude"]))
+            } else {
+                Err(vm::exec(&config.vm.name, &["claude"]))
+            }
         }
         Command::Down => {
             let config = config::Config::from_file(&cli.config)?;
@@ -91,7 +97,7 @@ cpus = 2
 
 # [[mcp]]
 # name = "github"
-# command = "npx"
-# args = ["-y", "@modelcontextprotocol/server-github"]
-# env = { GITHUB_TOKEN = "$GITHUB_TOKEN" }
+# command = "docker"
+# args = ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"]
+# env = { GITHUB_PERSONAL_ACCESS_TOKEN = "$GITHUB_PERSONAL_ACCESS_TOKEN" }
 "#;
