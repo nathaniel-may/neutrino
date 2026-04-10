@@ -112,10 +112,10 @@ distro = "ubuntu:24.04"
 memory_gb = 4
 cpus = 2
 
-[setup]
-run = [
-  "git clone https://github.com/your/repo.git",
-]
+# [setup]
+# run = [
+#   "apt-get install -y some-package",
+# ]
 
 [attach]
 command = "limactl"
