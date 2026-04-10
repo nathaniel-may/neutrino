@@ -9,7 +9,11 @@ pub fn run_if_needed(config: &Config) -> anyhow::Result<()> {
 
     let already_done = vm::capture(
         &config.vm.name,
-        &["sh", "-c", "test -f ~/.neutrino-setup-done && echo yes || true"],
+        &[
+            "sh",
+            "-c",
+            "test -f ~/.neutrino-setup-done && echo yes || true",
+        ],
     )?;
     if already_done == "yes" {
         return Ok(());

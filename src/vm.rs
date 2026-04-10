@@ -153,8 +153,8 @@ pub fn capture(vm_name: &str, cmd: &[&str]) -> anyhow::Result<String> {
 }
 
 pub fn push_file(vm_name: &str, src: &Path, dest: &str) -> anyhow::Result<()> {
-    let content = std::fs::read(src)
-        .with_context(|| format!("failed to read {}", src.display()))?;
+    let content =
+        std::fs::read(src).with_context(|| format!("failed to read {}", src.display()))?;
     let script = format!("mkdir -p $(dirname ~/{dest}) && cat > ~/{dest}");
     let mut child = Command::new("limactl")
         .args(["shell", vm_name, "--", "sh", "-c", &script])
@@ -200,7 +200,10 @@ fn lima_yaml(config: &VmConfig) -> anyhow::Result<String> {
             "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-arm64.img",
             "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img",
         ),
-        other => bail!("unsupported distro '{}' — supported: ubuntu:24.04, ubuntu:22.04", other),
+        other => bail!(
+            "unsupported distro '{}' — supported: ubuntu:24.04, ubuntu:22.04",
+            other
+        ),
     };
     Ok(format!(
         "cpus: {cpus}\nmemory: \"{memory}GiB\"\nmounts: []\nimages:\n  - location: \"{arm64}\"\n    arch: \"aarch64\"\n  - location: \"{amd64}\"\n    arch: \"x86_64\"\n",

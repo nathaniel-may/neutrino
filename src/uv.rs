@@ -34,15 +34,14 @@ fn is_installed(vm_name: &str) -> anyhow::Result<bool> {
 fn install(vm_name: &str) -> anyhow::Result<()> {
     println!("Installing uv...");
     vm::run_as_root(vm_name, &["apt-get", "install", "-y", "-q", "curl"])?;
-    // Install uv as root, then symlink to /usr/local/bin so it's in PATH for all users.
+    // UV_INSTALL_DIR places uv/uvx directly in /usr/local/bin — no intermediate
+    // home directory copy, no symlinks, no PATH shadowing warnings.
     vm::run_as_root(
         vm_name,
         &[
             "sh",
             "-c",
-            "curl -LsSf https://astral.sh/uv/install.sh | sh \
-         && ln -sf /root/.local/bin/uv /usr/local/bin/uv \
-         && ln -sf /root/.local/bin/uvx /usr/local/bin/uvx",
+            "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh",
         ],
     )?;
     println!("uv installed.");

@@ -37,17 +37,54 @@ pub fn write_settings(config: &Config) -> anyhow::Result<()> {
         Some(s) => load_secrets(&s.source)?,
         None => HashMap::new(),
     };
-    let json = build_settings(config, &secrets)?;
 
+    write_permissions(vm_name)?;
+    register_mcp_servers(config, vm_name, &secrets)?;
+
+    println!("Settings written.");
+    Ok(())
+}
+
+fn write_permissions(vm_name: &str) -> anyhow::Result<()> {
+    let json = build_settings()?;
     vm::run(vm_name, &["sh", "-c", "mkdir -p ~/.claude"])?;
-
     let tmp = std::env::temp_dir().join("neutrino-settings.json");
     std::fs::write(&tmp, &json)?;
     let result = vm::push_file(vm_name, &tmp, ".claude/settings.json");
     std::fs::remove_file(&tmp).ok();
-    result?;
+    result
+}
 
-    println!("Settings written.");
+fn register_mcp_servers(
+    config: &Config,
+    vm_name: &str,
+    secrets: &HashMap<String, String>,
+) -> anyhow::Result<()> {
+    for mcp in &config.mcp_servers {
+        let env = resolve_env(&mcp.env, secrets)?;
+
+        // Build: claude mcp add -s user [-e KEY=VAL ...] <name> -- <command> [args...]
+        let mut cmd = vec![
+            "claude".to_string(),
+            "mcp".to_string(),
+            "add".to_string(),
+            "-s".to_string(),
+            "user".to_string(),
+        ];
+        for (k, v) in &env {
+            cmd.push("-e".to_string());
+            cmd.push(format!("{k}={v}"));
+        }
+        cmd.push(mcp.name.clone());
+        if !mcp.args.is_empty() {
+            cmd.push("--".to_string());
+        }
+        cmd.push(mcp.command.clone());
+        cmd.extend(mcp.args.iter().cloned());
+
+        let cmd_refs: Vec<&str> = cmd.iter().map(String::as_str).collect();
+        vm::run(vm_name, &cmd_refs)?;
+    }
     Ok(())
 }
 
@@ -61,33 +98,12 @@ fn is_installed(vm_name: &str) -> anyhow::Result<bool> {
     Ok(status.success())
 }
 
-pub fn build_settings(
-    config: &Config,
-    secrets: &HashMap<String, String>,
-) -> anyhow::Result<String> {
-    let mcp_servers = config
-        .mcp_servers
-        .iter()
-        .map(|mcp| {
-            let env = resolve_env(&mcp.env, secrets)?;
-            Ok((
-                mcp.name.clone(),
-                McpServer {
-                    command: mcp.command.clone(),
-                    args: mcp.args.clone(),
-                    env,
-                },
-            ))
-        })
-        .collect::<anyhow::Result<HashMap<_, _>>>()?;
-
+pub fn build_settings() -> anyhow::Result<String> {
     let settings = Settings {
         permissions: Permissions {
             deny: vec!["Bash".into()],
         },
-        mcp_servers,
     };
-
     serde_json::to_string_pretty(&settings).context("failed to serialize settings")
 }
 
@@ -132,21 +148,11 @@ fn load_secrets(path: &Path) -> anyhow::Result<HashMap<String, String>> {
 #[derive(Serialize)]
 struct Settings {
     permissions: Permissions,
-    #[serde(rename = "mcpServers", skip_serializing_if = "HashMap::is_empty")]
-    mcp_servers: HashMap<String, McpServer>,
 }
 
 #[derive(Serialize)]
 struct Permissions {
     deny: Vec<String>,
-}
-
-#[derive(Serialize)]
-struct McpServer {
-    command: String,
-    args: Vec<String>,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    env: HashMap<String, String>,
 }
 
 #[cfg(test)]
@@ -208,7 +214,7 @@ mod tests {
 
     #[test]
     fn build_settings_denies_bash() {
-        let json = build_settings(&minimal_config(), &HashMap::new()).unwrap();
+        let json = build_settings().unwrap();
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(
             v["permissions"]["deny"]
@@ -219,8 +225,8 @@ mod tests {
     }
 
     #[test]
-    fn build_settings_omits_mcp_servers_when_empty() {
-        let json = build_settings(&minimal_config(), &HashMap::new()).unwrap();
+    fn build_settings_omits_mcp_servers() {
+        let json = build_settings().unwrap();
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(v.get("mcpServers").is_none());
     }
