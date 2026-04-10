@@ -30,7 +30,7 @@ enum Command {
     /// Provision the VM and launch the agent
     Run,
     /// Stop and delete the VM defined in the config
-    Down,
+    Destroy,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -59,9 +59,9 @@ fn main() -> anyhow::Result<()> {
                 Err(vm::exec(&config.vm.name, &["bash"]))
             }
         }
-        Command::Down => {
+        Command::Destroy => {
             let config = config::Config::from_file(&cli.config)?;
-            vm::down(&config.vm)
+            vm::destroy(&config.vm)
         }
     }
 }

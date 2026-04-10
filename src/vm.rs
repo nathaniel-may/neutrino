@@ -3,8 +3,6 @@ use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use shellexpand;
-
 use anyhow::{Context, bail};
 
 use crate::config::VmConfig;
@@ -45,7 +43,7 @@ fn write_ssh_config(name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn down(config: &VmConfig) -> anyhow::Result<()> {
+pub fn destroy(config: &VmConfig) -> anyhow::Result<()> {
     if !exists(&config.name)? {
         bail!("VM '{}' does not exist", config.name);
     }
@@ -239,7 +237,7 @@ fn drift_message(stored: &VmConfig, current: &VmConfig) -> Option<String> {
         changes.push(format!("  cpus:      {} → {}", stored.cpus, current.cpus));
     }
     Some(format!(
-        "VM '{}' was created with a different configuration:\n{}\nRun `neutrino down` then re-run to apply VM changes.",
+        "VM '{}' was created with a different configuration:\n{}\nRun `neutrino destroy` then re-run to apply VM changes.",
         current.name,
         changes.join("\n"),
     ))
@@ -294,7 +292,7 @@ mod tests {
         assert!(msg.contains("distro"));
         assert!(msg.contains("ubuntu:24.04"));
         assert!(msg.contains("ubuntu:22.04"));
-        assert!(msg.contains("neutrino down"));
+        assert!(msg.contains("neutrino destroy"));
     }
 
     #[test]
