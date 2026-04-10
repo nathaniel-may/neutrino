@@ -87,6 +87,9 @@ fn install(vm_name: &str) -> anyhow::Result<()> {
 
     let user = vm::capture(vm_name, &["whoami"])?;
     vm::run_as_root(vm_name, &["usermod", "-aG", "docker", &user])?;
+    // Make the socket world-writable so group membership isn't required.
+    // The VM is single-user and isolated, so this is acceptable.
+    vm::run_as_root(vm_name, &["chmod", "666", "/var/run/docker.sock"])?;
 
     println!("Docker installed.");
     Ok(())

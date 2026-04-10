@@ -40,9 +40,23 @@ pub fn write_settings(config: &Config) -> anyhow::Result<()> {
 
     write_permissions(vm_name)?;
     register_mcp_servers(config, vm_name, &secrets)?;
+    lock_settings(vm_name)?;
 
     println!("Settings written.");
     Ok(())
+}
+
+fn lock_settings(vm_name: &str) -> anyhow::Result<()> {
+    // Chown settings files to root so Claude cannot modify its own permissions
+    // or MCP config using its Write tool. Bash is denied, so sudo is unavailable.
+    vm::run(
+        vm_name,
+        &[
+            "sh",
+            "-c",
+            "sudo chown root:root ~/.claude/settings.json ~/.claude.json",
+        ],
+    )
 }
 
 fn write_permissions(vm_name: &str) -> anyhow::Result<()> {
