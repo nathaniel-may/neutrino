@@ -25,7 +25,12 @@ pub fn install_if_needed(config: &Config) -> anyhow::Result<()> {
 fn pull_images(config: &Config, vm_name: &str) -> anyhow::Result<()> {
     for mcp in config.mcp_servers.iter().filter(|m| m.command == "docker") {
         // Extract image from args: last arg that looks like an image reference
-        if let Some(image) = mcp.args.iter().rev().find(|a| !a.starts_with('-') && a.contains('/')) {
+        if let Some(image) = mcp
+            .args
+            .iter()
+            .rev()
+            .find(|a| !a.starts_with('-') && a.contains('/'))
+        {
             println!("Pulling Docker image {image}...");
             vm::run(vm_name, &["docker", "pull", image])?;
         }

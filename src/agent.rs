@@ -54,11 +54,7 @@ fn lock_settings(vm_name: &str) -> anyhow::Result<()> {
     // session history and project state.
     vm::run(
         vm_name,
-        &[
-            "sh",
-            "-c",
-            "sudo chown root:root ~/.claude/settings.json",
-        ],
+        &["sh", "-c", "sudo chown root:root ~/.claude/settings.json"],
     )
 }
 
