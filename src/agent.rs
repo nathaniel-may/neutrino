@@ -74,6 +74,13 @@ fn init_claude_config(vm_name: &str) -> anyhow::Result<()> {
 }
 
 fn write_permissions(vm_name: &str) -> anyhow::Result<()> {
+    let already_locked = vm::capture(
+        vm_name,
+        &["sh", "-c", "test -f ~/.claude/settings.json && echo yes || true"],
+    )?;
+    if already_locked == "yes" {
+        return Ok(());
+    }
     let json = build_settings()?;
     vm::run(vm_name, &["sh", "-c", "mkdir -p ~/.claude"])?;
     let tmp = std::env::temp_dir().join("neutrino-settings.json");
