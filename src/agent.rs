@@ -47,14 +47,16 @@ pub fn write_settings(config: &Config) -> anyhow::Result<()> {
 }
 
 fn lock_settings(vm_name: &str) -> anyhow::Result<()> {
-    // Chown settings files to root so Claude cannot modify its own permissions
-    // or MCP config using its Write tool. Bash is denied, so sudo is unavailable.
+    // Chown settings.json to root so Claude cannot modify its own permissions
+    // using its Write tool. Bash is denied, so sudo is unavailable to Claude.
+    // ~/.claude.json is left user-owned — Claude needs write access there for
+    // session history and project state.
     vm::run(
         vm_name,
         &[
             "sh",
             "-c",
-            "sudo chown root:root ~/.claude/settings.json ~/.claude.json",
+            "sudo chown root:root ~/.claude/settings.json",
         ],
     )
 }
