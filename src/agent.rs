@@ -63,7 +63,9 @@ fn register_mcp_servers(
     for mcp in &config.mcp_servers {
         let env = resolve_env(&mcp.env, secrets)?;
 
-        // Build: claude mcp add -s user [-e KEY=VAL ...] <name> -- <command> [args...]
+        // Build: claude mcp add -s user [-e KEY=VAL ...] -- <name> <command> [args...]
+        // The `--` terminates option parsing so the server name is never
+        // consumed as an extra value for the variadic -e flag.
         let mut cmd = vec![
             "claude".to_string(),
             "mcp".to_string(),
@@ -75,10 +77,8 @@ fn register_mcp_servers(
             cmd.push("-e".to_string());
             cmd.push(format!("{k}={v}"));
         }
+        cmd.push("--".to_string());
         cmd.push(mcp.name.clone());
-        if !mcp.args.is_empty() {
-            cmd.push("--".to_string());
-        }
         cmd.push(mcp.command.clone());
         cmd.extend(mcp.args.iter().cloned());
 
