@@ -16,7 +16,8 @@ pub fn up(config: &VmConfig) -> anyhow::Result<()> {
         let yaml = lima_yaml(config)?;
         let tmp = std::env::temp_dir().join(format!("neutrino-{}.yaml", config.name));
         std::fs::write(&tmp, &yaml)?;
-        let result = run_lima(&["create", "--name", &config.name, tmp.to_str().unwrap()]);
+        let tmp_str = tmp.to_string_lossy().into_owned();
+        let result = run_lima(&["create", "--name", &config.name, &tmp_str]);
         std::fs::remove_file(&tmp).ok();
         result?;
         run_lima(&["start", &config.name])?;
@@ -159,7 +160,7 @@ pub fn push_file(vm_name: &str, src: &Path, dest: &str) -> anyhow::Result<()> {
         .stdin(Stdio::piped())
         .spawn()
         .with_context(|| format!("failed to push {} to VM '{}'", src.display(), vm_name))?;
-    child.stdin.as_mut().unwrap().write_all(&content)?;
+    child.stdin.as_mut().expect("stdin is piped").write_all(&content)?;
     let status = child.wait()?;
     if !status.success() {
         bail!("failed to push {} to VM '{}'", src.display(), vm_name);

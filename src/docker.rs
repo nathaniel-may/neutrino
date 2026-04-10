@@ -24,12 +24,13 @@ pub fn install_if_needed(config: &Config) -> anyhow::Result<()> {
 
 fn pull_images(config: &Config, vm_name: &str) -> anyhow::Result<()> {
     for mcp in config.mcp_servers.iter().filter(|m| m.command == "docker") {
-        // Extract image from args: last arg that looks like an image reference
+        // Extract image from args: last non-flag arg after "run".
+        // Assumes standard `docker run [OPTIONS] IMAGE` form with no command after the image.
         if let Some(image) = mcp
             .args
             .iter()
             .rev()
-            .find(|a| !a.starts_with('-') && a.contains('/'))
+            .find(|a| !a.starts_with('-') && *a != "run")
         {
             println!("Pulling Docker image {image}...");
             vm::run(vm_name, &["docker", "pull", image])?;
@@ -115,26 +116,8 @@ fn install(vm_name: &str) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{AgentConfig, AgentType, McpConfig, VmConfig};
+    use crate::config::{McpConfig, minimal_config};
     use std::collections::HashMap;
-
-    fn minimal_config() -> Config {
-        Config {
-            agent: AgentConfig {
-                agent_type: AgentType::Claude,
-            },
-            vm: VmConfig {
-                name: "test".into(),
-                distro: "ubuntu:24.04".into(),
-                memory_gb: 4,
-                cpus: 2,
-            },
-            setup: None,
-            attach: None,
-            secrets: None,
-            mcp_servers: vec![],
-        }
-    }
 
     #[test]
     fn is_needed_false_when_no_mcp_servers() {

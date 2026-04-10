@@ -51,26 +51,8 @@ fn install(vm_name: &str) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{AgentConfig, AgentType, McpConfig, VmConfig};
+    use crate::config::{McpConfig, minimal_config};
     use std::collections::HashMap;
-
-    fn minimal_config() -> Config {
-        Config {
-            agent: AgentConfig {
-                agent_type: AgentType::Claude,
-            },
-            vm: VmConfig {
-                name: "test".into(),
-                distro: "ubuntu:24.04".into(),
-                memory_gb: 4,
-                cpus: 2,
-            },
-            setup: None,
-            attach: None,
-            secrets: None,
-            mcp_servers: vec![],
-        }
-    }
 
     #[test]
     fn is_needed_false_when_no_mcp_servers() {

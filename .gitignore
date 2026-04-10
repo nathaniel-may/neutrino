@@ -26,3 +26,4 @@ target
 /target
 
 .env
+.claude/settings.local.json

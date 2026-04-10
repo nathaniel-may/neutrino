@@ -101,7 +101,7 @@ impl std::fmt::Display for AgentType {
 /// VM provisioning configuration
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct VmConfig {
-    /// OrbStack VM name — must be unique per machine
+    /// Lima VM name — must be unique per machine
     pub name: String,
     /// Distro image (e.g. "ubuntu:24.04")
     pub distro: String,
@@ -182,6 +182,25 @@ fn resolve_path(base: &Path, path: &Path) -> PathBuf {
         expanded.to_path_buf()
     } else {
         base.join(expanded)
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn minimal_config() -> Config {
+    Config {
+        agent: AgentConfig {
+            agent_type: AgentType::Claude,
+        },
+        vm: VmConfig {
+            name: "test".into(),
+            distro: "ubuntu:24.04".into(),
+            memory_gb: 4,
+            cpus: 2,
+        },
+        setup: None,
+        attach: None,
+        secrets: None,
+        mcp_servers: vec![],
     }
 }
 

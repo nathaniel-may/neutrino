@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::agent::parse_env_file;
+use crate::agent::load_secrets;
 use crate::config::Config;
 use crate::vm;
 
@@ -23,10 +23,7 @@ pub fn run_if_needed(config: &Config) -> anyhow::Result<()> {
     }
 
     let secrets = match &config.secrets {
-        Some(s) => {
-            let content = std::fs::read_to_string(&s.source)?;
-            parse_env_file(&content)
-        }
+        Some(s) => load_secrets(&s.source)?,
         None => HashMap::new(),
     };
 

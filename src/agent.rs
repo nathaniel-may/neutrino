@@ -200,7 +200,7 @@ pub fn parse_env_file(content: &str) -> HashMap<String, String> {
         .collect()
 }
 
-fn load_secrets(path: &Path) -> anyhow::Result<HashMap<String, String>> {
+pub(crate) fn load_secrets(path: &Path) -> anyhow::Result<HashMap<String, String>> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read secrets file: {}", path.display()))?;
     Ok(parse_env_file(&content))
@@ -219,25 +219,6 @@ struct Permissions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{AgentConfig, AgentType, VmConfig};
-
-    fn minimal_config() -> Config {
-        Config {
-            agent: AgentConfig {
-                agent_type: AgentType::Claude,
-            },
-            vm: VmConfig {
-                name: "test".into(),
-                distro: "ubuntu:24.04".into(),
-                memory_gb: 4,
-                cpus: 2,
-            },
-            setup: None,
-            attach: None,
-            secrets: None,
-            mcp_servers: vec![],
-        }
-    }
 
     #[test]
     fn parse_env_file_basic() {
