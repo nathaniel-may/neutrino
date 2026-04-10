@@ -22,8 +22,8 @@ pub fn install_if_needed(config: &Config) -> anyhow::Result<()> {
 }
 
 fn is_installed(vm_name: &str) -> anyhow::Result<bool> {
-    let status = Command::new("orb")
-        .args(["run", "-m", vm_name, "which", "docker"])
+    let status = Command::new("limactl")
+        .args(["shell", vm_name, "--", "which", "docker"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
@@ -109,6 +109,7 @@ mod tests {
                 memory_gb: 4,
                 cpus: 2,
             },
+            setup: None,
             attach: None,
             secrets: None,
             mcp_servers: vec![],

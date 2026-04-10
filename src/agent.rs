@@ -52,12 +52,12 @@ pub fn write_settings(config: &Config) -> anyhow::Result<()> {
 }
 
 fn is_installed(vm_name: &str) -> anyhow::Result<bool> {
-    let status = Command::new("orb")
-        .args(["run", "-m", vm_name, "-u", "root", "which", "claude"])
+    let status = Command::new("limactl")
+        .args(["shell", vm_name, "--", "which", "claude"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .context("failed to check agent installation — is the VM running?")?;
+        .context("failed to check agent installation — is Lima installed?")?;
     Ok(status.success())
 }
 
@@ -165,6 +165,7 @@ mod tests {
                 memory_gb: 4,
                 cpus: 2,
             },
+            setup: None,
             attach: None,
             secrets: None,
             mcp_servers: vec![],

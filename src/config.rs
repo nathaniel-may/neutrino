@@ -11,6 +11,8 @@ pub struct Config {
     pub agent: AgentConfig,
     /// VM provisioning settings
     pub vm: VmConfig,
+    /// One-time setup commands run after first VM creation
+    pub setup: Option<SetupConfig>,
     /// Command to run on the host after the VM is provisioned
     pub attach: Option<AttachConfig>,
     /// Secrets file to source environment variables from
@@ -114,6 +116,13 @@ pub struct VmConfig {
 pub struct SecretsConfig {
     /// Path to a file to source secrets from — canonicalized to absolute at parse time
     pub source: PathBuf,
+}
+
+/// One-time setup commands run inside the VM after first creation
+#[derive(Debug, Deserialize)]
+pub struct SetupConfig {
+    /// Shell commands to run in sequence (each via `sh -c`)
+    pub run: Vec<String>,
 }
 
 /// Host-side command to run after the VM is provisioned

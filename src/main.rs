@@ -1,6 +1,7 @@
 mod agent;
 mod config;
 mod docker;
+mod setup;
 mod uv;
 mod vm;
 
@@ -39,22 +40,23 @@ fn main() -> anyhow::Result<()> {
         Command::Validate => validate(&cli.config),
         Command::Run => {
             let config = config::Config::from_file(&cli.config)?;
-            vm::check_drift(&config.vm)?;
             vm::up(&config.vm)?;
+            vm::check_drift(&config.vm)?;
             vm::save_config(&config.vm)?;
             agent::install(&config.vm.name)?;
             docker::install_if_needed(&config)?;
             uv::install_if_needed(&config)?;
+            setup::run_if_needed(&config)?;
             agent::write_settings(&config)?;
             if let Some(ref attach) = config.attach {
                 let args = attach.resolved_args(&config);
-                Err(anyhow::Error::from(
-                    Process::new(&attach.command).args(&args).exec(),
-                ))
+                let err = Process::new(&attach.command).args(&args).exec();
+                Err(anyhow::Error::from(err)
+                    .context(format!("failed to exec '{}'", attach.command)))
             } else if docker::is_needed(&config) {
-                Err(vm::exec(&config.vm.name, &["sg", "docker", "bash"]))
+                Err(vm::exec(&config.vm.name, &["sg", "docker", "-c", "bash"]))
             } else {
-                Err(vm::exec(&config.vm.name, &[]))
+                Err(vm::exec(&config.vm.name, &["bash"]))
             }
         }
         Command::Down => {
@@ -110,9 +112,14 @@ distro = "ubuntu:24.04"
 memory_gb = 4
 cpus = 2
 
+[setup]
+run = [
+  "git clone https://github.com/your/repo.git",
+]
+
 [attach]
-command = "orb"
-args = ["run", "-m", "{config.vm.name}"]
+command = "limactl"
+args = ["shell", "{config.vm.name}"]
 
 # [secrets]
 # source = ".env"
