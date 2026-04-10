@@ -1,0 +1,34 @@
+[agent]
+type = "claude"
+
+[vm]
+name = "neutrino"
+distro = "ubuntu:24.04"
+memory_gb = 4
+cpus = 2
+
+[setup]
+run = [
+  "git clone https://oauth2:$GITHUB_PERSONAL_ACCESS_TOKEN@github.com/nathaniel-may/neutrino.git",
+]
+
+
+# for this to work on first pass, shell in, have claude clone with the mcp server, then the project dir will exist.
+[attach]
+command = "open"
+args = ["-a", "Zed", "ssh://lima-neutrino/home/nate.guest/neutrino/"]
+# limactl shell neutrino
+
+[secrets]
+source = ".env"
+
+[[mcp]]
+name = "git"
+command = "uvx"
+args = ["mcp-server-git"]
+
+[[mcp]]
+name = "github"
+command = "docker"
+args = ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"]
+env = { GITHUB_PERSONAL_ACCESS_TOKEN = "$GITHUB_PERSONAL_ACCESS_TOKEN" }
