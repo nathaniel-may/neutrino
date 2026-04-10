@@ -39,6 +39,7 @@ pub fn write_settings(config: &Config) -> anyhow::Result<()> {
     };
 
     write_permissions(vm_name)?;
+    init_claude_config(vm_name)?;
     register_mcp_servers(config, vm_name, &secrets)?;
     lock_settings(vm_name)?;
 
@@ -61,6 +62,21 @@ fn lock_settings(vm_name: &str) -> anyhow::Result<()> {
     )
 }
 
+fn init_claude_config(vm_name: &str) -> anyhow::Result<()> {
+    // Run claude once non-interactively so it initializes ~/.claude.json before
+    // we register MCP servers. Without this, Claude overwrites the file on first
+    // startup and wipes our registrations.
+    let initialized = vm::capture(
+        vm_name,
+        &["sh", "-c", "test -f ~/.claude.json && echo yes || true"],
+    )?;
+    if initialized == "yes" {
+        return Ok(());
+    }
+    vm::run(vm_name, &["claude", "--version"])?;
+    Ok(())
+}
+
 fn write_permissions(vm_name: &str) -> anyhow::Result<()> {
     let json = build_settings()?;
     vm::run(vm_name, &["sh", "-c", "mkdir -p ~/.claude"])?;
@@ -76,8 +92,34 @@ fn register_mcp_servers(
     vm_name: &str,
     secrets: &HashMap<String, String>,
 ) -> anyhow::Result<()> {
+    // Remove project-level mcpServers overrides so user-scope servers are visible.
+    // Claude writes an empty mcpServers:{} for the home project which shadows
+    // the user-scoped registrations we add via `claude mcp add -s user`.
+    vm::run(
+        vm_name,
+        &[
+            "python3",
+            "-c",
+            r#"
+import json, os
+path = os.path.expanduser("~/.claude.json")
+if not os.path.exists(path):
+    exit(0)
+d = json.load(open(path))
+for proj in d.get("projects", {}).values():
+    proj.pop("mcpServers", None)
+json.dump(d, open(path, "w"))
+"#,
+        ],
+    )?;
+
     for mcp in &config.mcp_servers {
         let env = resolve_env(&mcp.env, secrets)?;
+
+        // Remove first so we always write fresh values (claude mcp add won't
+        // update an existing entry).
+        let remove_refs = ["claude", "mcp", "remove", &mcp.name];
+        let _ = vm::run(vm_name, &remove_refs); // ignore error if not present
 
         // Build: claude mcp add -s user [-e KEY=VAL ...] -- <name> <command> [args...]
         // The `--` terminates option parsing so the server name is never

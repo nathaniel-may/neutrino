@@ -14,11 +14,23 @@ pub fn install_if_needed(config: &Config) -> anyhow::Result<()> {
         return Ok(());
     }
     let vm_name = &config.vm.name;
-    if is_installed(vm_name)? {
+    if !is_installed(vm_name)? {
+        install(vm_name)?;
+    } else {
         println!("Docker already installed, skipping.");
-        return Ok(());
     }
-    install(vm_name)
+    pull_images(config, vm_name)
+}
+
+fn pull_images(config: &Config, vm_name: &str) -> anyhow::Result<()> {
+    for mcp in config.mcp_servers.iter().filter(|m| m.command == "docker") {
+        // Extract image from args: last arg that looks like an image reference
+        if let Some(image) = mcp.args.iter().rev().find(|a| !a.starts_with('-') && a.contains('/')) {
+            println!("Pulling Docker image {image}...");
+            vm::run(vm_name, &["docker", "pull", image])?;
+        }
+    }
+    Ok(())
 }
 
 fn is_installed(vm_name: &str) -> anyhow::Result<bool> {
